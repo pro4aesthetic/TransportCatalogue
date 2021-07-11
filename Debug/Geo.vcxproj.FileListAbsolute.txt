@@ -1,2 +1,0 @@
-D:\Projects\Geo\Debug\Geo.exe
-D:\Projects\Geo\Debug\Geo.pdb
