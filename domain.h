@@ -3,7 +3,7 @@
 #include "geo.h"
 
 #include <string_view>
-#include <map>
+#include <unordered_map>
 #include <vector>
 #include <string>
 #include <algorithm>
@@ -20,7 +20,7 @@ namespace detail
         stops(string_view type_,
             string_view name_,
             Coordinates coo_,
-            map<string, int> road_distances_)
+            unordered_map<string_view, int> road_distances_)
             : type(type_),
             name(name_),
             coo(coo_),
@@ -31,15 +31,15 @@ namespace detail
         string_view type = "none"sv;
         string_view name = "none"sv;
         Coordinates coo;
-        map<string, int> road_distances;
+        unordered_map<string_view, int> road_distances;
 
     public:
-        string get_name() const
+        string_view get_name() const
         {
-            return string(name);
+            return name;
         }
 
-        int get_distance(string str) const
+        int get_distance(string_view str) const
         {
             return road_distances.at(str);
         }
@@ -49,7 +49,12 @@ namespace detail
             return coo;
         }
 
-        bool check_road_distances() const
+        bool check_road_distances(string_view str) const
+        {
+            return road_distances.count(str);
+        }
+
+        bool check() const 
         {
             return road_distances.empty();
         }
@@ -60,7 +65,7 @@ namespace detail
         buses() = default;
         buses(string_view type_,
             string_view name_,
-            vector<string> stops_,
+            vector<string_view> stops_,
             bool is_roundtrip_)
             : type(type_),
             name(name_),
@@ -71,20 +76,20 @@ namespace detail
     private:
         string_view type = "none"sv;
         string_view name = "none"sv;
-        vector<string> stops;
+        vector<string_view> stops;
         bool is_roundtrip = true;
 
     public:
-        bool find_stop(const string&) const;
+        bool find_stop(string_view) const;
 
         bool check_is_roundtrip() const
         {
             return is_roundtrip;
         }
 
-        string get_name() const
+        string_view get_name() const
         {
-            return string(name);
+            return name;
         }
 
         int get_unique_stop_count() const
@@ -104,7 +109,7 @@ namespace detail
 
         int get_stop_count() const;
 
-        vector<string> get_stops() const;
+        vector<string_view> get_stops() const;
     };
 }
 

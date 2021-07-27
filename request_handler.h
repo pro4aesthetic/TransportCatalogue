@@ -1,19 +1,31 @@
-#pragma once
+﻿#pragma once
 
 #include "transport_catalogue.h"
+#include <optional>
 
-using save_inf = vector<map<string, tmp_type>>;
+// Класс RequestHandler играет роль Фасада, упрощающего взаимодействие JSON reader-а
+// с другими подсистемами приложения.
+// См. паттерн проектирования Фасад: https://ru.wikipedia.org/wiki/Фасад_(шаблон_проектирования)
 
-void handler(TransportCatalogue&, const save_inf&);
-inline result_bs answer1(TransportCatalogue& transport, const map<string, tmp_type>& stat_requests)
+class RequestHandler 
 {
-	return transport.get_inf_buses(stat_requests);
-}
+public:
+    // MapRenderer понадобится в следующей части итогового проекта
+    RequestHandler(const TransportCatalogue& db/*, const renderer::MapRenderer& renderer*/)
+        : db_(db) {
+    }
 
-inline result_st answer2(TransportCatalogue& transport, const map<string, tmp_type>& stat_requests)
-{
-	return transport.get_inf_stops(stat_requests);
-}
+    // Возвращает информацию о маршруте (запрос Bus)
+    optional<bus_stat> get_bus_stat(const string_view& bus_name) const;
 
-//result_bs* answer1(TransportCatalogue&, const map<string, tmp_type>&);
-//result_st* answer2(TransportCatalogue&, const map<string, tmp_type>&);
+    // Возвращает маршруты, проходящие через
+    optional<bus_ptr> get_buses_by_stop(const string_view& stop_name) const;
+
+    // Этот метод будет нужен в следующей части итогового проекта
+    //svg::Document RenderMap() const;
+
+private:
+    // RequestHandler использует агрегацию объектов "Транспортный Справочник" и "Визуализатор Карты"
+    const TransportCatalogue& db_;
+    //const renderer::MapRenderer& renderer_;
+};

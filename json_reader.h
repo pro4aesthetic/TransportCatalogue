@@ -7,8 +7,20 @@
 
 using namespace json;
 
-using result_parse = tuple<save_inf, save_inf>;
+class JsonReader : public TransportCatalogue
+{
+public:
+	JsonReader() = default;
+	JsonReader(const Node& nd_)
+		: nd(nd_) {
+	}
+	~JsonReader() = default;
 
-result_parse info();
-result_parse parse(istream&);
-void answer_handler(TransportCatalogue&, const save_inf&);
+	void push_base_requests();
+
+private:	
+	const Node& nd;
+};
+
+Node parse_requests();
+void result_requests(const RequestHandler&, const Node&);

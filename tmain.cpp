@@ -1,14 +1,19 @@
 ﻿#include "json_reader.h"
+#include <chrono>
 
 int main()
 {    
-    auto [base_requests, stat_requests] = info();
+    const auto start = chrono::steady_clock::now();
     
-    TransportCatalogue transport;
-    handler(transport, base_requests);
+    const Node& node = parse_requests();
+    JsonReader transport(node.AsMap().at("base_requests"s));
+    transport.push_base_requests();
+    
+    RequestHandler rqhandler(transport);
+    result_requests(rqhandler, node.AsMap().at("stat_requests"s));
 
-    answer_handler(transport, stat_requests);
-
+    const auto duration = chrono::steady_clock::now() - start;
+    cout << chrono::duration_cast<chrono::milliseconds>(duration).count() << "ms"sv << endl;
     return 0;
 
     /*
