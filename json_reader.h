@@ -1,26 +1,22 @@
 #pragma once
 
-#include <sstream>
-#include <algorithm>
 #include "json.h"
 #include "request_handler.h"
 
+#include <memory>
+
 using namespace json;
 
-class JsonReader : public TransportCatalogue
+class JsonReader final : public TransportCatalogue
 {
 public:
-	JsonReader() = default;
-	JsonReader(const Node& nd_)
-		: nd(nd_) {
-	}
+	explicit JsonReader() = default;
 	~JsonReader() = default;
 
-	void push_base_requests();
+	void parse_requests(istream&) override;
+	void print(const RequestHandler&, ostream&);
 
 private:	
-	const Node& nd;
+	unique_ptr<Node> nd;
+	void push_requests() override;
 };
-
-Node parse_requests();
-void result_requests(const RequestHandler&, const Node&);

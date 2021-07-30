@@ -1,19 +1,13 @@
 #include "request_handler.h"
 
-optional<bus_stat> RequestHandler::get_bus_stat(const string_view& bus_name) const
+optional<BusStat> RequestHandler::get_bus_stat(const string_view& bus_name) const
 {
-	bus_stat result = db_.get_buses(bus_name);
-
-	if (result.check) return result;
-
+	if (db_.get_bus(bus_name).check) return db_.get_bus(bus_name);
 	else return nullopt;
 }
 
-optional<bus_ptr> RequestHandler::get_buses_by_stop(const string_view& stop_name) const
+const unordered_set<BusPtr, BusPtrHash>* RequestHandler::get_buses_by_stop(const string_view& stop_name) const
 {
-	bus_ptr result = db_.get_stops(stop_name);
-
-	if (result.check) return result;
-
-	else return nullopt;
+	if (!db_.get_stop(stop_name)->empty()) return db_.get_stop(stop_name);
+	else return nullptr;
 }

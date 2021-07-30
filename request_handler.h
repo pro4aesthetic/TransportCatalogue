@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "transport_catalogue.h"
+
 #include <optional>
 
 // Класс RequestHandler играет роль Фасада, упрощающего взаимодействие JSON reader-а
@@ -16,10 +17,10 @@ public:
     }
 
     // Возвращает информацию о маршруте (запрос Bus)
-    optional<bus_stat> get_bus_stat(const string_view& bus_name) const;
+    optional<BusStat> get_bus_stat(const string_view& bus_name) const;
 
     // Возвращает маршруты, проходящие через
-    optional<bus_ptr> get_buses_by_stop(const string_view& stop_name) const;
+    const unordered_set<BusPtr, BusPtrHash>* get_buses_by_stop(const string_view& stop_name) const;
 
     // Этот метод будет нужен в следующей части итогового проекта
     //svg::Document RenderMap() const;

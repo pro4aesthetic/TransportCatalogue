@@ -5,111 +5,64 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-#include <string>
 #include <algorithm>
 #include <iterator>
+#include <tuple>
 
 using namespace std;
 using namespace geo;
 
 namespace detail
 {
-    struct stops
+    struct Stops
     {
-        stops() = default;
-        stops(string_view type_,
-            string_view name_,
-            Coordinates coo_,
-            unordered_map<string_view, int> road_distances_)
-            : type(type_),
-            name(name_),
-            coo(coo_),
-            road_distances(move(road_distances_)) {
-        }
-
-    private:
-        string_view type = "none"sv;
+        Stops() = default;
+        ~Stops() = default;
+        
         string_view name = "none"sv;
-        Coordinates coo;
+        Coordinates coordinates {0.0, 0.0};
         unordered_map<string_view, int> road_distances;
 
     public:
-        string_view get_name() const
-        {
-            return name;
-        }
-
-        int get_distance(string_view str) const
-        {
-            return road_distances.at(str);
-        }
-
-        Coordinates get_coordinates() const
-        {
-            return coo;
-        }
-
-        bool check_road_distances(string_view str) const
-        {
-            return road_distances.count(str);
-        }
-
-        bool check() const 
-        {
-            return road_distances.empty();
-        }
+        int get_distance(const string_view& name) const { return road_distances.at(name); }
+        bool check_road_distances(const string_view& name) const { return road_distances.count(name); }
+        bool check() const { return road_distances.empty(); }
     };
 
-    struct buses
+    struct Buses
     {
-        buses() = default;
-        buses(string_view type_,
-            string_view name_,
-            vector<string_view> stops_,
-            bool is_roundtrip_)
-            : type(type_),
-            name(name_),
-            stops(move(stops_)),
-            is_roundtrip(is_roundtrip_) {
-        }
-
-    private:
-        string_view type = "none"sv;
+        Buses() = default;
+        ~Buses() = default;
+        
         string_view name = "none"sv;
         vector<string_view> stops;
         bool is_roundtrip = true;
 
     public:
-        bool find_stop(string_view) const;
-
-        bool check_is_roundtrip() const
-        {
-            return is_roundtrip;
-        }
-
-        string_view get_name() const
-        {
-            return name;
-        }
-
-        int get_unique_stop_count() const
-        {
-            int counter = 0;
-
-            for (const auto& v : stops)
-            {
-                int r = count(begin(stops), end(stops), v);
-                if (r == 1)  ++counter;
-            }
-            int cnt = stops.size() - counter;
-            int result = cnt / 2;
-
-            return counter + result;
-        }
-
-        int get_stop_count() const;
-
+        bool find_stop(const string_view&) const;
+        int get_unique_stop_count() const;
+        int get_stop_count() const { return get_stops().size(); }
         vector<string_view> get_stops() const;
+    };
+
+    struct BusStat
+    {
+        double curvature = 0.0;
+        int route_length = 0;
+        int stop_count = 0;
+        int unique_stop_count = 0;
+        bool check = false;
+    };
+
+    struct BusPtr
+    {
+        string_view name = "none"sv;
+        bool check = false;
+
+        bool operator==(const BusPtr& lhs) const noexcept
+        {
+            return tuple(lhs.check, lhs.name) == tuple(this->check, this->name);
+        }
     };
 }
 

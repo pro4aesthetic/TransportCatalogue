@@ -1,6 +1,7 @@
 #include "transport_catalogue.h"
+#include <iostream>
 
-bus_stat TransportCatalogue::get_buses(const string_view& bus_name) const
+BusStat TransportCatalogue::get_bus(const string_view& bus_name) const
 {
     if (u_bus_catalogue.count(bus_name))
     {
@@ -18,7 +19,7 @@ bus_stat TransportCatalogue::get_buses(const string_view& bus_name) const
             {
                 if (end(u_stop_catalogue) != u_stop_catalogue.find(*it) && end(u_stop_catalogue) != u_stop_catalogue.find(*(it + 1)))
                 {
-                    com_distance += compute_distance(find_stops(*it)->get_coordinates(), find_stops(*(it + 1))->get_coordinates());
+                    com_distance += compute_distance(find_stops(*it)->coordinates, find_stops(*(it + 1))->coordinates);
 
                     if (!find_stops(*it)->check_road_distances(*(it + 1)) && !find_stops(*(it + 1))->check_road_distances(*it))
                         continue;
@@ -28,14 +29,12 @@ bus_stat TransportCatalogue::get_buses(const string_view& bus_name) const
 
                     else length += find_stops(*it)->get_distance(*(it + 1));
                 }
-
-                else continue;
             }
 
             curvature = length / com_distance;
         }
 
-        return bus_stat
+        return BusStat
         {
             curvature,
             length,
@@ -45,26 +44,18 @@ bus_stat TransportCatalogue::get_buses(const string_view& bus_name) const
         };
     }
 
-    else return bus_stat{};
+    else return BusStat{};
 }
 
-bus_ptr TransportCatalogue::get_stops(const string_view& stop_name) const
+const unordered_set<BusPtr, BusPtrHash>* TransportCatalogue::get_stop(const string_view& stop_name) const noexcept
 {
+    auto bus_ptr = make_unique<unordered_set<BusPtr, BusPtrHash>>(bus);
     if (u_stop_catalogue.count(stop_name))
     {
-        unordered_set<string_view> bus;
-        for (auto& [key, value] : u_bus_catalogue)
-        {
+        for (const auto& [key, value] : u_bus_catalogue)
             if (value->find_stop(stop_name))
-                bus.emplace(value->get_name());
-        }
+                bus_ptr->emplace(BusPtr{ value->name, true });
+    }    
 
-        return bus_ptr
-        {
-            bus,
-            true
-        };
-    }
-
-    else return bus_ptr{};
+    return bus_ptr.get();
 }
