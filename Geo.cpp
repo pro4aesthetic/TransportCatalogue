@@ -5,7 +5,6 @@
 
 namespace geo
 {
-
     double compute_distance(Coordinates from, Coordinates to) 
     {
         using namespace std;

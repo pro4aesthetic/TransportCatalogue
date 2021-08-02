@@ -1,16 +1,14 @@
 ﻿#include "json.h"
 
-using namespace std;
-
 namespace json
 {
-
+    
     namespace
     {
 
         Node LoadNode(istream& input);
 
-        variant<nullptr_t, Array, Dict, bool, int, double, string> LoadType(istream& input)
+        Type LoadType(istream& input)
         {
             string parsed_num;
 
@@ -373,47 +371,17 @@ namespace json
             throw logic_error("Not an bool"s);
         return get<bool>(*this);
     }
-
-    bool Node::IsNull() const
-    {
-        return holds_alternative<nullptr_t>(*this);
-    }
-    bool Node::IsArray() const
-    {
-        return holds_alternative<Array>(*this);
-    }
-    bool Node::IsMap() const
-    {
-        return holds_alternative<Dict>(*this);
-    }
-    bool Node::IsInt() const
-    {
-        return holds_alternative<int>(*this);
-    }
     bool Node::IsDouble() const
     {
         if (IsInt())
             return true;
         return holds_alternative<double>(*this);
     }
-    bool Node::IsString() const
-    {
-        return holds_alternative<string>(*this);
-    }
-    bool Node::IsBool() const
-    {
-        return holds_alternative<bool>(*this);
-    }
     bool Node::IsPureDouble() const
     {
         if (IsInt())
             return false;
         return holds_alternative<double>(*this);
-    }
-
-    const Node& Document::GetRoot() const
-    {
-        return root_;
     }
 
     Document Load(istream& input)
@@ -423,8 +391,7 @@ namespace json
 
     ostream& operator<<(ostream& output, const Node& node)
     {
-        if (node.IsNull())
-            output << "null"s;
+        if (node.IsNull()) output << "null"s;
         else if (node.IsArray())
         {
             bool flag = false;
@@ -451,12 +418,9 @@ namespace json
             }
             output << endl << "}"s;
         }
-        else if (node.IsBool())
-            output << boolalpha << node.AsBool();
-        else if (node.IsInt())
-            output << node.AsInt();
-        else if (node.IsDouble())
-            output << node.AsDouble();
+        else if (node.IsBool()) output << boolalpha << node.AsBool();
+        else if (node.IsInt()) output << node.AsInt();
+        else if (node.IsDouble()) output << node.AsDouble();
         else if (node.IsString())
         {
             output << "\""s;
@@ -464,29 +428,29 @@ namespace json
             {
                 switch (c)
                 {
-                case '\"': output << "\\\""s;
-                    break;
-                case '\\': output << "\\\\"s;
-                    break;
-                case '\n': output << "\\n"s;
-                    break;
-                case '\r': output << "\\r"s;
-                    break;
-                case '\t': output << "\\t"s;
-                    break;
-                case '\b': output << "\\b"s;
-                    break;
-                case '\f': output << "\\f"s;
-                    break;
-                case '\a': output << "\\a"s;
-                    break;
-                case '\v': output << "\\v"s;
-                    break;
-                case '\'': output << "\\\'"s;
-                    break;
-                case '\?': output << "\\\?"s;
-                    break;
-                default: output << c;
+                    case '\"': output << "\\\""s;
+                        break;
+                    case '\\': output << "\\\\"s;
+                        break;
+                    case '\n': output << "\\n"s;
+                        break;
+                    case '\r': output << "\\r"s;
+                        break;
+                    case '\t': output << "\\t"s;
+                        break;
+                    case '\b': output << "\\b"s;
+                        break;
+                    case '\f': output << "\\f"s;
+                        break;
+                    case '\a': output << "\\a"s;
+                        break;
+                    case '\v': output << "\\v"s;
+                        break;
+                    case '\'': output << "\\\'"s;
+                        break;
+                    case '\?': output << "\\\?"s;
+                        break;
+                    default: output << c;
                 }
             }
             output << "\""s;

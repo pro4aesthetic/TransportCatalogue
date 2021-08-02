@@ -1,61 +1,55 @@
 #include "transport_catalogue.h"
-#include <iostream>
 
-BusStat TransportCatalogue::get_bus(const string_view& bus_name) const
+namespace transportcatalogue
 {
-    if (u_bus_catalogue.count(bus_name))
+    BusStat TransportCatalogue::get_bus(const string_view& bus_name) const
     {
-        auto bus = find_buses(bus_name);
-
-        int length = 0;
-        double com_distance = 0.0, curvature = 0.0;
-
-        if (bus->get_stop_count())
+        if (u_bus_catalogue.count(bus_name))
         {
-            auto vec = bus->get_stops();
-            int count = 1;
+            auto bus = find_buses(bus_name);
+            double com_distance = 0.0, curvature = 0.0, road_distances = 0.0;
 
-            for (auto it = begin(vec); it < end(vec) - 1; ++it, ++count)
+            if (bus->check())
             {
-                if (end(u_stop_catalogue) != u_stop_catalogue.find(*it) && end(u_stop_catalogue) != u_stop_catalogue.find(*(it + 1)))
+                auto vec = bus->get_stops();
+                int count = 1;
+
+                for (auto it = begin(vec); it < end(vec) - 1; ++it, ++count)
                 {
                     com_distance += compute_distance(find_stops(*it)->coordinates, find_stops(*(it + 1))->coordinates);
-
-                    if (!find_stops(*it)->check_road_distances(*(it + 1)) && !find_stops(*(it + 1))->check_road_distances(*it))
-                        continue;
-
-                    else if (!find_stops(*it)->check_road_distances(*(it + 1)) || find_stops(*it)->check())
-                        length += find_stops(*(it + 1))->get_distance(*it);
-
-                    else length += find_stops(*it)->get_distance(*(it + 1));
+                    if (find_stops(*it)->check_road_distances(*(it + 1)))
+                        road_distances += find_stops(*it)->get_distance(*(it + 1));
+                    else road_distances += find_stops(*(it + 1))->get_distance(*it);
                 }
             }
+            curvature = road_distances / com_distance;
 
-            curvature = length / com_distance;
+            return BusStat
+            {
+                curvature,
+                road_distances,
+                bus->get_stop_count(),
+                bus->get_unique_stop_count(),
+                true
+            };
         }
 
-        return BusStat
-        {
-            curvature,
-            length,
-            bus->get_stop_count(),
-            bus->get_unique_stop_count(),
-            true
-        };
+        else return BusStat{};
     }
 
-    else return BusStat{};
-}
-
-const unordered_set<BusPtr, BusPtrHash>* TransportCatalogue::get_stop(const string_view& stop_name) const noexcept
-{
-    auto bus_ptr = make_unique<unordered_set<BusPtr, BusPtrHash>>(bus);
-    if (u_stop_catalogue.count(stop_name))
+    const set<BusPtr>* TransportCatalogue::get_stop(const string_view& stop_name) const noexcept
     {
-        for (const auto& [key, value] : u_bus_catalogue)
-            if (value->find_stop(stop_name))
-                bus_ptr->emplace(BusPtr{ value->name, true });
-    }    
+        //LOG_DURATION("get stop"s);
 
-    return bus_ptr.get();
+        auto bus_ptr = make_unique<set<BusPtr>>(bus);
+        if (u_stop_catalogue.count(stop_name))
+        {
+            for (const auto& [key, value] : u_bus_catalogue)
+                if (value->find_stop(stop_name))
+                    bus_ptr->emplace(move(BusPtr{ value->name }));
+                else bus_ptr->emplace(move(BusPtr{}));
+        }
+
+        return bus_ptr.release();
+    }
 }

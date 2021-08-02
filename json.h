@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <string>
@@ -8,34 +9,35 @@
 #include <variant>
 #include <tuple>
 
+using namespace std;
+
 namespace json
 {
 
     class Node;
-    using Dict = std::map<std::string, Node>;
-    using Array = std::vector<Node>;
+    using Dict = map<string, Node>;
+    using Array = vector<Node>;
+    using Type = variant<nullptr_t, Array, Dict, bool, int, double, string>;
 
     // Эта ошибка должна выбрасываться при ошибках парсинга JSON
-    class ParsingError : public std::runtime_error
+    class ParsingError : public runtime_error
     {
     public:
         using runtime_error::runtime_error;
     };
 
-    class Node final
-        : private std::variant<std::nullptr_t, Array, Dict, bool, int, double, std::string>
+    class Node final : private Type
     {
     public:
         using variant::variant;
 
-        Node(variant v)
-            : variant(v) {
+        Node(variant v) : variant(v) {
         }
 
         const Array& AsArray() const;
         const Dict& AsMap() const;
         int AsInt() const;
-        const std::string& AsString() const;
+        const string& AsString() const;
         double AsDouble() const;
         bool AsBool() const;
 
@@ -50,39 +52,31 @@ namespace json
                 std::tuple(other.AsArray(), other.AsMap(), other.AsInt(), other.AsString(), other.AsDouble(), other.AsBool());
         }
 
-        bool IsNull() const;
-        bool IsArray() const;
-        bool IsMap() const;
-        bool IsInt() const;
+        bool IsNull() const { return holds_alternative<nullptr_t>(*this); }
+        bool IsArray() const { return holds_alternative<Array>(*this); }
+        bool IsMap() const { return holds_alternative<Dict>(*this); }
+        bool IsInt() const { return holds_alternative<int>(*this); }
         bool IsDouble() const;
-        bool IsString() const;
-        bool IsBool() const;
+        bool IsString() const { return holds_alternative<string>(*this); }
+        bool IsBool() const { return holds_alternative<bool>(*this); }
         bool IsPureDouble() const;
     };
 
     class Document
     {
     public:
-        explicit Document(Node root)
-            : root_(move(root)) {
+        explicit Document(Node root) : root_(move(root)) {
         }
 
-        const Node& GetRoot() const;
-        bool operator==(const Document& other) const
-        {
-            return root_ == other.root_;
-        }
-        bool operator!=(const Document& other) const
-        {
-            return root_ != other.root_;
-        }
+        const Node& GetRoot() const { return root_; }
+        bool operator==(const Document& other) const { return root_ == other.root_; }
+        bool operator!=(const Document& other) const { return root_ != other.root_; }
 
     private:
         Node root_;
     };
 
     Document Load(std::istream& input);
-
-    void Print(const Document& doc, std::ostream& output);
+    void Print(const Document& doc, ostream& output);
 
 }  // namespace json
