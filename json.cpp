@@ -1,466 +1,348 @@
 ﻿#include "json.h"
 
-namespace json
-{
-    
-    namespace
-    {
+namespace json {
 
-        Node LoadNode(istream& input);
+namespace {
 
-        Type LoadType(istream& input)
-        {
-            string parsed_num;
+Node LoadNode(istream& input);
+Node LoadString(istream& input);
 
-            // Считывает в parsed_num очередной символ из input
-            auto read_char = [&parsed_num, &input]
-            {
-                parsed_num += static_cast<char>(input.get());
-                if (!input)
-                    throw ParsingError("Failed to read number from stream"s);
-            };
+string LoadLiteral(istream& input) {
+    string s;
+    while (isalpha(input.peek())) {
+        s.push_back(static_cast<char>(input.get()));
+    }
+    return s;
+}
 
-            // Считывает одну или более цифр в parsed_num из input
-            auto read_digits = [&input, read_char]
-            {
-                if (!isdigit(input.peek()))
-                    throw ParsingError("A digit is expected"s);
+Node LoadArray(istream& input) {
+    vector<Node> result;
 
-                while (isdigit(input.peek()))
-                    read_char();
-            };
+    for (char c; input >> c && c != ']';) {
+        if (c != ',') {
+            input.putback(c);
+        }
+        result.push_back(LoadNode(input));
+    }
+    if (!input) {
+        throw ParsingError("Array parsing error"s);
+    }
+    return Node(move(result));
+}
 
-            auto read_string_l = [&input, read_char]
-            {
-                if (!isalnum(input.peek()))
-                    throw ParsingError("Failed to read letter from stream"s);
+Node LoadDict(istream& input) {
+    Dict dict;
 
-                while (input)
-                {
-                    if (isalnum(input.peek()))
-                        read_char();
-                    else break;                    
+    for (char c; input >> c && c != '}';) {
+        if (c == '"') {
+            string key = LoadString(input).AsString();
+            if (input >> c && c == ':') {
+                if (dict.find(key) != dict.end()) {
+                    throw ParsingError("Duplicate key '"s + key + "' have been found");
                 }
-            };
-
-            auto read_string = [&, read_char]
-            {
-                if (!isalnum(input.peek()))
-                    throw ParsingError("Failed to read letter from stream"s);
-
-                string s1{ "true"s }, s2{ "false"s }, s3{ "null"s };
-                int t = 0, f = 0, n = 0, i = -1;
-                bool flag = false;
-
-                while (input)
-                {
-                    if (isalnum(input.peek()))
-                    {
-                        read_char();
-                        ++i;
-                        if (s1[t] == parsed_num[i])
-                        {
-                            if (i == t)
-                            {
-                                ++t;
-                                if (s1.size() - t >= 1)
-                                    flag = true;
-                                else if (4 == t)
-                                    flag = false;
-                            }
-
-                            else if (i != t && t > 0)
-                                --t;
-                        }
-                        if (s2[f] == parsed_num[i])
-                        {
-                            if (i == f)
-                            {
-                                ++f;
-                                if (s2.size() - f >= 1)
-                                    flag = true;
-                                else if (5 == f)
-                                    flag = false;
-                            }
-
-                            else if (i != f && f > 0)
-                                --f;
-                        }
-                        if (s3[n] == parsed_num[i])
-                        {
-                            if (i == n)
-                            {
-                                ++n;
-                                if (s3.size() - n >= 1)
-                                    flag = true;
-                                else if (4 == n)
-                                    flag = false;
-                            }
-
-                            else if (i != n && n > 0)
-                                --n;
-                        }
-                    }
-
-                    else
-                    {
-                        if (flag)
-                            throw ParsingError("read string"s);
-                        break;
-                    }
-                }
-            };
-
-            auto read_cntrl = [&parsed_num, &input]
-            {
-                input.ignore();
-                switch (input.get())
-                {
-                case 'n': parsed_num += "\n"s;
-                    break;
-                case 't': parsed_num += "\t"s;
-                    break;
-                case 'r': parsed_num += "\r"s;
-                    break;
-                case 'b': parsed_num += "\b"s;
-                    break;
-                case 'f': parsed_num += "\f"s;
-                    break;
-                case 'a': parsed_num += "\a"s;
-                    break;
-                case 'v': parsed_num += "\v"s;
-                    break;
-                case '\\': parsed_num += "\\"s;
-                    break;
-                case '\"': parsed_num += "\""s;
-                    break;
-                }
-            };
-
-            if (input.peek() == ']' || input.peek() == '}')
-                throw ParsingError("]}"s);
-
-            else if (input.peek() == '[')
-            {
-                Array array;
-
-                input.ignore();
-                if (input.peek() != EOF)
-                {
-                    for (char c; input >> c && c != ']';)
-                    {
-                        if (c == ',' || c == ' ')
-                            input.ignore();
-
-                        else
-                        {
-                            input.putback(c);
-                            array.push_back(LoadNode(input));
-                        }
-                    }
-                }
-
-                else
-                    throw ParsingError("block array"s);
-
-                return array;
+                dict.emplace(move(key), LoadNode(input));
+            } else {
+                throw ParsingError(": is expected but '"s + c + "' has been found"s);
             }
-            else if (input.peek() == '{')
-            {
-                Dict dict;
-                bool flag = true;
+        } else if (c != ',') {
+            throw ParsingError(R"(',' is expected but ')"s + c + "' has been found"s);
+        }
+    }
+    if (!input) {
+        throw ParsingError("Dictionary parsing error"s);
+    }
+    return Node(move(dict));
+}
 
-                input.ignore();
-                if (input.peek() != EOF)
-                {
-                    for (char c; input >> c && c != '}';)
-                    {
-                        if (c == ',' || c == ' ' || c == ':')
-                            input.ignore();
-                        else
-                        {
-                            if (flag)
-                            {
-                                input.putback(c);
-                                parsed_num = LoadNode(input).AsString();
-                                flag = false;
-                            }
-                            else
-                            {
-                                input.putback(c);
-                                dict.insert({ move(parsed_num), LoadNode(input) });
-                                flag = true;
-                            }
-                        }
-                    }
-                }
-
-                else
-                    throw ParsingError("block dict"s);
-
-                return dict;
+Node LoadString(istream& input) {
+    auto it = istreambuf_iterator<char>(input);
+    auto end = istreambuf_iterator<char>();
+    string s;
+    while (true) {
+        if (it == end) {
+            throw ParsingError("String parsing error");
+        }
+        const char ch = *it;
+        if (ch == '"') {
+            ++it;
+            break;
+        } else if (ch == '\\') {
+            ++it;
+            if (it == end) {
+                throw ParsingError("String parsing error");
             }
-            else
-            {
-                if (isdigit(input.peek()) || input.peek() == '-')
-                {
-                    if (input.peek() == '-')
-                        read_char();
+            const char escaped_char = *(it);
+            switch (escaped_char) {
+                case 'n':
+                    s.push_back('\n');
+                    break;
+                case 't':
+                    s.push_back('\t');
+                    break;
+                case 'r':
+                    s.push_back('\r');
+                    break;
+                case '"':
+                    s.push_back('"');
+                    break;
+                case '\\':
+                    s.push_back('\\');
+                    break;
+                default:
+                    throw ParsingError("Unrecognized escape sequence \\"s + escaped_char);
+            }
+        } else if (ch == '\n' || ch == '\r') {
+            throw ParsingError("Unexpected end of line"s);
+        } else {
+            s.push_back(ch);
+        }
+        ++it;
+    }
 
-                    // Парсим целую часть числа
-                    if (input.peek() == '0')
-                        read_char();
-                    // После 0 в JSON не могут идти другие цифры
-                    else
-                        read_digits();
+    return Node(move(s));
+}
 
-                    bool is_int = true;
-                    // Парсим дробную часть числа
-                    if (input.peek() == '.')
-                    {
-                        read_char();
-                        read_digits();
-                        is_int = false;
-                    }
+Node LoadBool(istream& input) {
+    const auto s = LoadLiteral(input);
+    if (s == "true"sv) {
+        return Node{true};
+    } else if (s == "false"sv) {
+        return Node{false};
+    } else {
+        throw ParsingError("Failed to parse '"s + s + "' as bool"s);
+    }
+}
 
-                    // Парсим экспоненциальную часть числа
-                    if (int ch = input.peek(); ch == 'e' || ch == 'E')
-                    {
-                        read_char();
-                        if (ch = input.peek(); ch == '+' || ch == '-')
-                            read_char();
+Node LoadNull(istream& input) {
+    if (auto literal = LoadLiteral(input); literal == "null"sv) {
+        return Node{nullptr};
+    } else {
+        throw ParsingError("Failed to parse '"s + literal + "' as null"s);
+    }
+}
 
-                        read_digits();
-                        is_int = false;
-                    }
+Node LoadNumber(istream& input) {
+    string parsed_num;
 
-                    try
-                    {
-                        if (is_int)
-                        {
-                            // Сначала пробуем преобразовать строку в int
-                            try
-                            {
-                                return stoi(parsed_num);
-                            }
-                            catch (...)
-                            {
-                                // В случае неудачи, например, при переполнении
-                                // код ниже попробует преобразовать строку в double
-                            }
-                        }
-                        return stod(parsed_num);
-                    }
-                    catch (...)
-                    {
-                        throw ParsingError("Failed to convert "s + parsed_num + " to number"s);
-                    }
-                }
-                else
-                {
-                    int cntrl = 0;
-                    if (input.peek() == '"')
-                    {
-                        while (input)
-                        {
-                            if (input.peek() == '"')
-                            {
-                                ++cntrl;
-                                input.ignore();
-                                if (cntrl % 2 == 0)
-                                    break;
-                            }
-                            else if (input.peek() == '\\')
-                                read_cntrl();
-                            else if (input.peek() == ' ' || ispunct(input.peek()))
-                                read_char();
-                            else if (isalnum(input.peek()))
-                                read_string_l();
-                            else input.ignore();
-                        }
+    // Считывает в parsed_num очередной символ из input
+    auto read_char = [&parsed_num, &input] {
+        parsed_num += static_cast<char>(input.get());
+        if (!input) {
+            throw ParsingError("Failed to read number from stream"s);
+        }
+    };
 
-                        if (cntrl % 2 != 0)
-                            throw ParsingError("block string"s);
-                        
-                        return parsed_num;
-                    }
-                    else
-                    {
-                        if (input.peek() == '\\')
-                            read_cntrl();
-                        else if (input.peek() == ' ' || ispunct(input.peek()))
-                            read_char();
-                        else if (isalnum(input.peek()))
-                            read_string();
-                        else input.ignore();
+    // Считывает одну или более цифр в parsed_num из input
+    auto read_digits = [&input, read_char] {
+        if (!isdigit(input.peek())) {
+            throw ParsingError("A digit is expected"s);
+        }
+        while (isdigit(input.peek())) {
+            read_char();
+        }
+    };
 
-                        if (parsed_num == "null"s)
-                            return nullptr;
+    if (input.peek() == '-') {
+        read_char();
+    }
+    // Парсим целую часть числа
+    if (input.peek() == '0') {
+        read_char();
+        // После 0 в JSON не могут идти другие цифры
+    } else {
+        read_digits();
+    }
 
-                        else if (parsed_num == "true"s)
-                            return true;
+    bool is_int = true;
+    // Парсим дробную часть числа
+    if (input.peek() == '.') {
+        read_char();
+        read_digits();
+        is_int = false;
+    }
 
-                        else if (parsed_num == "false"s)
-                            return false;
+    // Парсим экспоненциальную часть числа
+    if (int ch = input.peek(); ch == 'e' || ch == 'E') {
+        read_char();
+        if (ch = input.peek(); ch == '+' || ch == '-') {
+            read_char();
+        }
+        read_digits();
+        is_int = false;
+    }
 
-                        else return parsed_num;
-                    }
-                }
+    try {
+        if (is_int) {
+            // Сначала пробуем преобразовать строку в int
+            try {
+                return stoi(parsed_num);
+            } catch (...) {
+                // В случае неудачи, например, при переполнении
+                // код ниже попробует преобразовать строку в double
             }
         }
-
-        Node LoadNode(istream& input)
-        {
-            try
-            {
-                return Node(move(LoadType(input)));
-            }
-            catch (ParsingError&)
-            {
-                throw ParsingError("LoadNode error"s);
-            }
-        }
-
-    }  // namespace
-
-    const Array& Node::AsArray() const
-    {
-        if (!IsArray())
-            throw logic_error("Not an array"s);
-        return get<Array>(*this);
+        return stod(parsed_num);
+    } catch (...) {
+        throw ParsingError("Failed to convert "s + parsed_num + " to number"s);
     }
+}
 
-    const Dict& Node::AsMap() const
-    {
-        if (!IsMap())
-            throw logic_error("Not an map"s);
-        return get<Dict>(*this);
+Node LoadNode(std::istream& input) {
+    char c;
+    if (!(input >> c)) {
+        throw ParsingError("Unexpected EOF"s);
     }
-
-    int Node::AsInt() const
-    {
-        if (!IsInt())
-            throw logic_error("Not an int"s);
-        return get<int>(*this);
+    switch (c) {
+        case '[':
+            return LoadArray(input);
+        case '{':
+            return LoadDict(input);
+        case '"':
+            return LoadString(input);
+        case 't':
+            // Атрибут [[fallthrough]] (провалиться) ничего не делает, и является
+            // подсказкой компилятору и человеку, что здесь программист явно задумывал
+            // разрешить переход к инструкции следующей ветки case, а не случайно забыл
+            // написать break, return или throw.
+            // В данном случае, встретив t или f, переходим к попытке парсинга
+            // литералов true либо false
+            [[fallthrough]];
+        case 'f':
+            input.putback(c);
+            return LoadBool(input);
+        case 'n':
+            input.putback(c);
+            return LoadNull(input);
+        default:
+            input.putback(c);
+            return LoadNumber(input);
     }
+}
 
-    const string& Node::AsString() const
-    {
-        if (!IsString())
-            throw logic_error("Not an string"s);
-        return get<string>(*this);
-    }
+struct PrintContext {
+    ostream& out;
+    int indent_step = 4;
+    int indent = 0;
 
-    double Node::AsDouble() const
-    {
-        try
-        {
-            if (IsInt())
-                return static_cast<double>(get<int>(*this));
-            return get<double>(*this);
-        }
-        catch (...)
-        {
-            throw logic_error("Not an double"s);
+    void PrintIndent() const {
+        for (int i = 0; i < indent; ++i) {
+            out.put(' ');
         }
     }
 
-    bool Node::AsBool() const
-    {
-        if (!IsBool())
-            throw logic_error("Not an bool"s);
-        return get<bool>(*this);
+    PrintContext Indented() const {
+        return {out, indent_step, indent_step + indent};
     }
-    bool Node::IsDouble() const
-    {
-        if (IsInt())
-            return true;
-        return holds_alternative<double>(*this);
-    }
-    bool Node::IsPureDouble() const
-    {
-        if (IsInt())
-            return false;
-        return holds_alternative<double>(*this);
-    }
+};
 
-    Document Load(istream& input)
-    {
-        return Document{ LoadNode(input) };
-    }
+void PrintNode(const Node& value, const PrintContext& ctx);
 
-    ostream& operator<<(ostream& output, const Node& node)
-    {
-        if (node.IsNull()) output << "null"s;
-        else if (node.IsArray())
-        {
-            bool flag = false;
-            output << "["s;
-            for (const auto& noded : node.AsArray())
-            {
-                if (flag)
-                    output << ", "s;
-                output << noded;
-                flag = true;
-            }
-            output << "]"s;
-        }
-        else if (node.IsMap())
-        {
-            bool flag = false;
-            output << "{"s << endl;
-            for (const auto& [key, noded] : node.AsMap())
-            {
-                if (flag)
-                    output << ","s << endl;
-                output << "\""s << key << "\""s << ": "s << noded;
-                flag = true;
-            }
-            output << endl << "}"s;
-        }
-        else if (node.IsBool()) output << boolalpha << node.AsBool();
-        else if (node.IsInt()) output << node.AsInt();
-        else if (node.IsDouble()) output << node.AsDouble();
-        else if (node.IsString())
-        {
-            output << "\""s;
-            for (const char c : node.AsString())
-            {
-                switch (c)
-                {
-                    case '\"': output << "\\\""s;
-                        break;
-                    case '\\': output << "\\\\"s;
-                        break;
-                    case '\n': output << "\\n"s;
-                        break;
-                    case '\r': output << "\\r"s;
-                        break;
-                    case '\t': output << "\\t"s;
-                        break;
-                    case '\b': output << "\\b"s;
-                        break;
-                    case '\f': output << "\\f"s;
-                        break;
-                    case '\a': output << "\\a"s;
-                        break;
-                    case '\v': output << "\\v"s;
-                        break;
-                    case '\'': output << "\\\'"s;
-                        break;
-                    case '\?': output << "\\\?"s;
-                        break;
-                    default: output << c;
-                }
-            }
-            output << "\""s;
-        }
-        return output;
-    }
+template <typename Value>
+void PrintValue(const Value& value, const PrintContext& ctx) {
+    ctx.out << value;
+}
 
-    void Print(const Document& doc, ostream& output)
-    {
-        output << doc.GetRoot();
+void PrintString(const string& value, ostream& out) {
+    out.put('"');
+    for (const char c : value) {
+        switch (c) {
+            case '\r':
+                out << "\\r"sv;
+                break;
+            case '\n':
+                out << "\\n"sv;
+                break;
+            case '"':
+                // Символы " и \ выводятся как \" или \\, соответственно
+                [[fallthrough]];
+            case '\\':
+                out.put('\\');
+                [[fallthrough]];
+            default:
+                out.put(c);
+                break;
+        }
     }
+    out.put('"');
+}
+
+template <>
+void PrintValue<string>(const string& value, const PrintContext& ctx) {
+    PrintString(value, ctx.out);
+}
+
+template <>
+void PrintValue<nullptr_t>(const nullptr_t&, const PrintContext& ctx) {
+    ctx.out << "null"sv;
+}
+
+// В специализаци шаблона PrintValue для типа bool параметр value передаётся
+// по константной ссылке, как и в основном шаблоне.
+// В качестве альтернативы можно использовать перегрузку:
+// void PrintValue(bool value, const PrintContext& ctx);
+template <>
+void PrintValue<bool>(const bool& value, const PrintContext& ctx) {
+    ctx.out << (value ? "true"sv : "false"sv);
+}
+
+template <>
+void PrintValue<Array>(const Array& nodes, const PrintContext& ctx) {
+    ostream& out = ctx.out;
+    out << "[\n"sv;
+    bool first = true;
+    auto inner_ctx = ctx.Indented();
+    for (const Node& node : nodes) {
+        if (first) {
+            first = false;
+        } else {
+            out << ",\n"sv;
+        }
+        inner_ctx.PrintIndent();
+        PrintNode(node, inner_ctx);
+    }
+    out.put('\n');
+    ctx.PrintIndent();
+    out.put(']');
+}
+
+template <>
+void PrintValue<Dict>(const Dict& nodes, const PrintContext& ctx) {
+    ostream& out = ctx.out;
+    out << "{\n"sv;
+    bool first = true;
+    auto inner_ctx = ctx.Indented();
+    for (const auto& [key, node] : nodes) {
+        if (first) {
+            first = false;
+        } else {
+            out << ",\n"sv;
+        }
+        inner_ctx.PrintIndent();
+        PrintString(key, ctx.out);
+        out << ": "sv;
+        PrintNode(node, inner_ctx);
+    }
+    out.put('\n');
+    ctx.PrintIndent();
+    out.put('}');
+}
+
+void PrintNode(const Node& node, const PrintContext& ctx) {
+    visit(
+        [&ctx](const auto& value) {
+            PrintValue(value, ctx);
+        },
+        node.GetValue());
+}
+
+}  // namespace
+
+Document Load(istream& input) {
+    return Document{LoadNode(input)};
+}
+
+void Print(const Document& doc, ostream& output) {
+    PrintNode(doc.GetRoot(), PrintContext{output});
+}
 
 }  // namespace json
