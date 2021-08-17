@@ -5,7 +5,6 @@
 
 #include "domain.h"
 
-#include <utility>
 #include <cstdlib>
 #include <memory>
 #include <deque>
@@ -15,15 +14,15 @@ using namespace detail;
 
 namespace transportcatalogue {
     class TransportCatalogue {
-    public:
-        TransportCatalogue() = default;
-        virtual ~TransportCatalogue() = default;
+    public:        
         void push_bus(const Bus&);
         void push_stop(const Stop&);
         [[nodiscard]] BusStat get_bus(const string_view&) const;
         [[nodiscard]] const set<BusPtr>* get_stop(const string_view&) const noexcept;
 
     protected:
+        TransportCatalogue() = default;
+        ~TransportCatalogue() = default;
         unordered_map<string_view, const Bus*> u_bus_catalogue;
         unordered_map<string_view, const Stop*> u_stop_catalogue;
         const Bus* find_buses(const string_view& name) const {
@@ -36,6 +35,6 @@ namespace transportcatalogue {
     private:
         deque<Bus> save_bus;
         deque<Stop> save_stop;
-        set<BusPtr> bus;
+        set<BusPtr> bus = {};
     };
 }

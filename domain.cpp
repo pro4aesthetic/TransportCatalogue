@@ -2,7 +2,9 @@
 
 namespace detail {
 	bool Bus::find_stop(const string_view& name) const {
-		if (count(begin(stops), end(stops), name)) return true;		
+		if (count(begin(stops), end(stops), name)) { 
+			return true; 
+		}
 		return false;
 	}
 
@@ -17,7 +19,6 @@ namespace detail {
 			copy(make_move_iterator(rbegin(stops) + 1), make_move_iterator(rend(stops)), back_inserter(result));
 			return result;
 		}
-
 		return stops;		
 	}
 }

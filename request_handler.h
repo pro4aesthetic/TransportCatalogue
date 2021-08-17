@@ -1,11 +1,9 @@
 ﻿#pragma once
 
-#include "transport_catalogue.h"
 #include "map_renderer.h"
 
 #include <optional>
 
-using namespace transportcatalogue;
 using namespace renderer;
 
 // Класс RequestHandler играет роль Фасада, упрощающего взаимодействие JSON reader-а
@@ -28,7 +26,7 @@ namespace handler {
         const set<BusPtr>* get_buses_by_stop(const string_view& stop_name) const;
 
         // Этот метод будет нужен в следующей части итогового проекта
-        svg::Document RenderMap() const;
+        svg::Document render_map() const;
 
     private:
         // RequestHandler использует агрегацию объектов "Транспортный Справочник" и "Визуализатор Карты"

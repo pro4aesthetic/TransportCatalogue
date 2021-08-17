@@ -10,11 +10,9 @@
 #include <algorithm>
 #include <iterator>
 
-using namespace std;
 using namespace geo;
 
-namespace detail
-{
+namespace detail {
     struct Stop {
         Stop() = default;
         ~Stop() = default;

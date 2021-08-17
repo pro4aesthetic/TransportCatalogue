@@ -1,12 +1,12 @@
 #define _USE_MATH_DEFINES
 #include "geo.h"
 
-#include <cmath>
+namespace geo {
+    bool IsZero(double value) {
+        return abs(value) < EPSILON;
+    }
 
-namespace geo
-{
-    double compute_distance(Coordinates from, Coordinates to) 
-    {
+    double compute_distance(Coordinates from, Coordinates to) {
         using namespace std;
         const double dr = M_PI / 180.0;
         return acos(sin(from.lat * dr) * sin(to.lat * dr)

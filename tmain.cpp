@@ -1,98 +1,67 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
 
 #include "json_reader.h"
-#include "request_handler.h"
-#include "map_renderer.h"
 
 #include <fstream>
-#include <cstdlib> // для ф-ии getenv
 
 using namespace reader;
-using namespace handler;
 
 // паттерн проектирования абстрактная фабрика https://ru.wikipedia.org/wiki/Абстрактная_фабрика_(шаблон_проектирования)
 // так же используется паттерн проектирования одиночка https://ru.wikipedia.org/wiki/Одиночка_(шаблон_проектирования)
-class TransportCatalogueFactory;
+class TransportFactory;
 
-class TransportCatalogueFactoryDestroyer {
+class TransportFactoryDestroyer {
 public:
-    ~TransportCatalogueFactoryDestroyer() {
+    ~TransportFactoryDestroyer() {
         delete _instance;
     }
-    void initialize(TransportCatalogueFactory* p) {
+    void initialize(TransportFactory* p) {
         _instance = p;
     }
 
 private:
-    TransportCatalogueFactory* _instance;
+    TransportFactory* _instance = nullptr;
 };
 
-class TransportCatalogueFactory {
+class TransportFactory {
 public:
-    static TransportCatalogueFactory& instance();
-    virtual TransportCatalogue* make_renderer_catalogue() {
-        return new TransportCatalogue;
+    static TransportFactory* instance();
+    MapRenderer* make_catalogue() const {
+        return new MapRenderer;
     }
 
 protected:
-    TransportCatalogueFactory() = default;
-    TransportCatalogueFactory(const TransportCatalogueFactory&) = delete;
-    TransportCatalogueFactory& operator=(const TransportCatalogueFactory&) = delete;
-    ~TransportCatalogueFactory() = default;
-    friend class TransportCatalogueFactoryDestroyer;
+    TransportFactory() = default;
+    ~TransportFactory() = default;
+    TransportFactory(const TransportFactory&) = delete;
+    TransportFactory& operator=(const TransportFactory&) = delete;
+    friend class TransportFactoryDestroyer;
 
 private:
-    static TransportCatalogueFactory* _instance;
-    static TransportCatalogueFactoryDestroyer destroyer;
+    static TransportFactory* _instance;
+    static TransportFactoryDestroyer destroyer;
 };
 
-class MapTransportCatalogueFactory : public TransportCatalogueFactory {
-public:
-    MapTransportCatalogueFactory() = default;
-    TransportCatalogue* make_renderer_catalogue() {
-        return new MapRenderer;
-    }
-};
+TransportFactory* TransportFactory::_instance = 0;
+TransportFactoryDestroyer TransportFactory::destroyer;
 
-class Create {
-public:
-    TransportCatalogue* create(TransportCatalogueFactory& factory);
-};
-
-TransportCatalogueFactory* TransportCatalogueFactory::_instance = 0;
-TransportCatalogueFactoryDestroyer TransportCatalogueFactory::destroyer;
-
-TransportCatalogueFactory& TransportCatalogueFactory::instance() {
+TransportFactory* TransportFactory::instance() {
     if (_instance == 0) {
-        const char* transport_catalogue_style = getenv("TRANSPORTCATALOGUESTYLE");
-
-        if (strcmp(transport_catalogue_style, "map") == 0) {
-            _instance = new MapTransportCatalogueFactory;
-            destroyer.initialize(_instance);
-        }
-        else {
-            _instance = new TransportCatalogueFactory;
-            destroyer.initialize(_instance);
-        }
+        _instance = new TransportFactory;
+        destroyer.initialize(_instance);
     }
-    return *_instance;
-}
-
-TransportCatalogue* Create::create(TransportCatalogueFactory& factory) {
-    TransportCatalogue* catalogue = factory.make_renderer_catalogue();
-    return catalogue;
+    return _instance;
 }
 
 void run_system(istream& input, ostream& output) {
-    Create run;
-    TransportCatalogueFactory& factory = TransportCatalogueFactory::instance();
-    TransportCatalogue* db = run.create(factory);
+    TransportFactory* factory = TransportFactory::instance();
+    MapRenderer* renderer = factory->make_catalogue();
     
-    JsonReader object;
+    JsonReader object(*renderer);
     object.parse(input);
 
-    //RequestHandler requests(*db, dynamic_cast<MapRenderer&>(*db));
-    //object.print(requests, output);
+    RequestHandler requests(*renderer, *renderer);
+    object.print(requests, output);
 }
 
 int main() {
@@ -100,9 +69,8 @@ int main() {
     
     //ifstream input("big_test_with_map.json", ios_base::in);
     //ofstream output("big_test_with_map_result_2.json", ios_base::out);
-    ifstream input("render_test.json", ios_base::in);
-    ofstream output("map_test.svg", ios_base::out);
-
+    ifstream input("123.json", ios_base::in);
+    ofstream output("321_2.json", ios_base::out);
     run_system(input, output);
 
     input.close();
